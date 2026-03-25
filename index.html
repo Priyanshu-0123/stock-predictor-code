@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>StockSense — NSE/BSE Predictor</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0e0c;
+    --bg2: #111710;
+    --bg3: #161d14;
+    --panel: #1a2218;
+    --border: rgba(74,222,128,0.12);
+    --border2: rgba(74,222,128,0.25);
+    --green: #4ade80;
+    --green-dim: #22c55e;
+    --green-dark: #166534;
+    --red: #f87171;
+    --red-dark: #7f1d1d;
+    --amber: #fbbf24;
+    --text: #e2f5e8;
+    --text2: #8fad96;
+    --text3: #4d7055;
+    --mono: 'IBM Plex Mono', monospace;
+    --display: 'Syne', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(74,222,128,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(74,222,128,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 3rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    font-family: var(--display);
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--green);
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+  .logo span { color: var(--text2); font-weight: 400; }
+  .tagline {
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.15em;
+    margin-top: 6px;
+    text-transform: uppercase;
+  }
+  .badge-ml {
+    background: rgba(74,222,128,0.08);
+    border: 1px solid var(--border2);
+    color: var(--green-dim);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+  }
+
+  /* Search bar */
+  .search-section {
+    margin-bottom: 2.5rem;
+  }
+  .search-label {
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: block;
+  }
+  .search-row {
+    display: flex;
+    gap: 10px;
+  }
+  .search-input {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--border2);
+    color: var(--green);
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 500;
+    padding: 14px 18px;
+    border-radius: 6px;
+    outline: none;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .search-input::placeholder { color: var(--text3); font-size: 14px; text-transform: none; letter-spacing: 0; }
+  .search-input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(74,222,128,0.1); }
+  .search-btn {
+    background: var(--green);
+    color: #0a0e0c;
+    border: none;
+    font-family: var(--display);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 14px 28px;
+    border-radius: 6px;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .search-btn:hover { background: #6ee7a0; }
+  .search-btn:active { transform: scale(0.97); }
+  .search-btn:disabled { background: var(--text3); cursor: not-allowed; }
+
+  /* Quick picks */
+  .quick-picks {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+  }
+  .quick-label { font-size: 11px; color: var(--text3); align-self: center; }
+  .pick-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .pick-btn:hover { border-color: var(--border2); color: var(--green); }
+
+  /* Status */
+  .status-bar {
+    font-size: 12px;
+    color: var(--text3);
+    padding: 10px 14px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 2rem;
+    display: none;
+    align-items: center;
+    gap: 10px;
+  }
+  .status-bar.visible { display: flex; }
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Error */
+  .error-box {
+    background: rgba(248,113,113,0.06);
+    border: 1px solid rgba(248,113,113,0.2);
+    color: var(--red);
+    font-size: 13px;
+    padding: 14px 18px;
+    border-radius: 6px;
+    margin-bottom: 2rem;
+    display: none;
+  }
+  .error-box.visible { display: block; }
+
+  /* Results */
+  #results { display: none; animation: fadeUp 0.4s ease; }
+  #results.visible { display: block; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Verdict */
+  .verdict {
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+    background: var(--panel);
+    position: relative;
+    overflow: hidden;
+  }
+  .verdict::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px; height: 100%;
+    background: var(--green);
+    border-radius: 10px 0 0 10px;
+  }
+  .verdict.down::before { background: var(--red); }
+  .verdict-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.25rem;
+  }
+  .verdict-ticker {
+    font-family: var(--display);
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text2);
+    letter-spacing: 0.04em;
+  }
+  .verdict-direction {
+    font-family: var(--display);
+    font-size: 3rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+  .verdict-direction.up { color: var(--green); }
+  .verdict-direction.down { color: var(--red); }
+  .verdict-arrow { font-size: 2rem; margin-right: 8px; }
+  .confidence-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 12px;
+  }
+  .conf-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; }
+  .conf-bar-bg {
+    flex: 1;
+    height: 6px;
+    background: var(--bg3);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .conf-bar-fill { height: 100%; border-radius: 3px; background: var(--green); transition: width 0.8s cubic-bezier(.4,0,.2,1); }
+  .conf-bar-fill.down-fill { background: var(--red); }
+  .conf-pct { font-size: 13px; font-weight: 600; color: var(--text); min-width: 40px; text-align: right; }
+
+  /* Stats grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 1.5rem;
+  }
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .stat-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 6px; }
+  .stat-val { font-size: 20px; font-weight: 500; color: var(--text); font-family: var(--mono); }
+  .stat-val.positive { color: var(--green); }
+  .stat-val.negative { color: var(--red); }
+  .stat-val.neutral { color: var(--amber); }
+
+  /* Prob bars */
+  .prob-section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .prob-title { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 14px; }
+  .prob-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .prob-row:last-child { margin-bottom: 0; }
+  .prob-dir { font-size: 12px; font-weight: 600; width: 40px; }
+  .prob-dir.up { color: var(--green); }
+  .prob-dir.down { color: var(--red); }
+  .prob-bg { flex: 1; height: 8px; background: var(--bg3); border-radius: 4px; overflow: hidden; }
+  .prob-fill { height: 100%; border-radius: 4px; transition: width 1s cubic-bezier(.4,0,.2,1); }
+  .prob-fill.up { background: var(--green-dim); }
+  .prob-fill.down { background: var(--red); }
+  .prob-num { font-size: 13px; font-weight: 500; min-width: 38px; text-align: right; }
+
+  /* Feature importances */
+  .feat-section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .feat-title { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 14px; }
+  .feat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; font-size: 12px; }
+  .feat-name { color: var(--text2); width: 120px; flex-shrink: 0; }
+  .feat-bar-bg { flex: 1; height: 5px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+  .feat-bar-fill { height: 100%; border-radius: 3px; background: rgba(74,222,128,0.5); }
+  .feat-pct { color: var(--text3); min-width: 36px; text-align: right; }
+
+  /* Footer */
+  .footer-note {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text3);
+    line-height: 1.8;
+  }
+  .footer-note strong { color: var(--text2); }
+
+  @media(max-width: 600px) {
+    .verdict-direction { font-size: 2.2rem; }
+    .search-row { flex-direction: column; }
+    .search-btn { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div>
+      <div class="logo">Stock<span>Sense</span></div>
+      <div class="tagline">NSE / BSE · Random Forest · ML Predictor</div>
+    </div>
+    <div class="badge-ml">Random Forest · ML</div>
+  </header>
+
+  <div class="search-section">
+    <span class="search-label">Enter NSE/BSE ticker symbol</span>
+    <div class="search-row">
+      <input class="search-input" id="tickerInput" type="text" placeholder="e.g. RELIANCE, TCS, INFY" maxlength="20" autocomplete="off" />
+      <button class="search-btn" id="predictBtn" onclick="predict()">Predict ↗</button>
+    </div>
+    <div class="quick-picks">
+      <span class="quick-label">Quick:</span>
+      <button class="pick-btn" onclick="quickPick('RELIANCE')">RELIANCE</button>
+      <button class="pick-btn" onclick="quickPick('TCS')">TCS</button>
+      <button class="pick-btn" onclick="quickPick('INFY')">INFY</button>
+      <button class="pick-btn" onclick="quickPick('HDFCBANK')">HDFCBANK</button>
+      <button class="pick-btn" onclick="quickPick('WIPRO')">WIPRO</button>
+      <button class="pick-btn" onclick="quickPick('TATAMOTORS')">TATAMOTORS</button>
+    </div>
+  </div>
+
+  <div class="status-bar" id="statusBar">
+    <div class="spinner"></div>
+    <span id="statusText">Fetching data and training model...</span>
+  </div>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <div id="results">
+
+    <!-- Verdict card -->
+    <div class="verdict" id="verdictCard">
+      <div class="verdict-top">
+        <div>
+          <div class="verdict-ticker" id="vTicker">—</div>
+          <div style="font-size:12px; color:var(--text3); margin-top:4px;">Next-day direction forecast</div>
+        </div>
+        <div>
+          <div class="verdict-direction" id="vDirection">—</div>
+        </div>
+      </div>
+      <div class="confidence-row">
+        <span class="conf-label">Confidence</span>
+        <div class="conf-bar-bg"><div class="conf-bar-fill" id="confBar" style="width:0%"></div></div>
+        <span class="conf-pct" id="confPct">—</span>
+      </div>
+      <div style="font-size:11px; color:var(--text3); margin-top:10px;">
+        Model accuracy on last 30 trading days: <span id="accBadge" style="color:var(--green);font-weight:600;">—</span>
+        &nbsp;·&nbsp; Trained on <span id="dpCount">—</span> data points
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Current Price</div>
+        <div class="stat-val" id="sPrice">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Day Change</div>
+        <div class="stat-val" id="sChange">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">RSI (14)</div>
+        <div class="stat-val" id="sRsi">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">MACD</div>
+        <div class="stat-val" id="sMacd">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">BB Position</div>
+        <div class="stat-val" id="sBb">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Volatility (ATR%)</div>
+        <div class="stat-val" id="sAtr">—</div>
+      </div>
+    </div>
+
+    <!-- Probability bars -->
+    <div class="prob-section">
+      <div class="prob-title">Prediction probabilities</div>
+      <div class="prob-row">
+        <span class="prob-dir up">UP</span>
+        <div class="prob-bg"><div class="prob-fill up" id="probUpBar" style="width:0%"></div></div>
+        <span class="prob-num" id="probUpNum">—</span>
+      </div>
+      <div class="prob-row">
+        <span class="prob-dir down">DOWN</span>
+        <div class="prob-bg"><div class="prob-fill down" id="probDownBar" style="width:0%"></div></div>
+        <span class="prob-num" id="probDownNum">—</span>
+      </div>
+    </div>
+
+    <!-- Feature importances -->
+    <div class="feat-section">
+      <div class="feat-title">Top signals driving this prediction</div>
+      <div id="featList"></div>
+    </div>
+
+  </div>
+
+  <div class="footer-note">
+    <strong>How it works:</strong> Fetches 2 years of historical data via yfinance → computes 14 technical indicators (RSI, MACD, Bollinger Bands, ATR, OBV, etc.) → trains a Random Forest classifier → predicts if tomorrow's close will be higher or lower than today's.<br>
+    <strong>Disclaimer:</strong> This is an academic project. Not financial advice. Stock markets are inherently unpredictable.
+  </div>
+
+</div>
+
+<script>
+  // ⚡ IMPORTANT: Replace this URL with your Render backend URL after deployment
+  const API_BASE = "https://YOUR-APP-NAME.onrender.com";
+  // For local testing, use: const API_BASE = "http://localhost:5000";
+
+  const input = document.getElementById("tickerInput");
+  input.addEventListener("keydown", e => { if (e.key === "Enter") predict(); });
+
+  function quickPick(ticker) {
+    input.value = ticker;
+    predict();
+  }
+
+  function setStatus(msg) {
+    const bar = document.getElementById("statusBar");
+    document.getElementById("statusText").textContent = msg;
+    bar.classList.add("visible");
+  }
+  function hideStatus() { document.getElementById("statusBar").classList.remove("visible"); }
+  function showError(msg) {
+    const box = document.getElementById("errorBox");
+    box.textContent = "⚠ " + msg;
+    box.classList.add("visible");
+  }
+  function hideError() { document.getElementById("errorBox").classList.remove("visible"); }
+
+  async function predict() {
+    const ticker = input.value.trim().toUpperCase();
+    if (!ticker) return;
+
+    const btn = document.getElementById("predictBtn");
+    btn.disabled = true;
+    hideError();
+    document.getElementById("results").classList.remove("visible");
+    setStatus(`Fetching data for ${ticker} and training model... (~15 seconds)`);
+
+    try {
+      const res = await fetch(`${API_BASE}/predict?ticker=${encodeURIComponent(ticker)}`);
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        showError(data.error || "Something went wrong.");
+        return;
+      }
+
+      renderResults(data);
+    } catch (e) {
+      showError("Could not reach the prediction server. Make sure your backend is running.");
+    } finally {
+      hideStatus();
+      btn.disabled = false;
+    }
+  }
+
+  function renderResults(d) {
+    const isUp = d.prediction === "UP";
+
+    // Verdict
+    const card = document.getElementById("verdictCard");
+    card.className = "verdict" + (isUp ? "" : " down");
+    document.getElementById("vTicker").textContent = d.ticker;
+    const dir = document.getElementById("vDirection");
+    dir.textContent = (isUp ? "▲ UP" : "▼ DOWN");
+    dir.className = "verdict-direction " + (isUp ? "up" : "down");
+
+    const confBar = document.getElementById("confBar");
+    confBar.style.width = d.confidence + "%";
+    confBar.className = "conf-bar-fill" + (isUp ? "" : " down-fill");
+    document.getElementById("confPct").textContent = d.confidence + "%";
+    document.getElementById("accBadge").textContent = d.recent_accuracy + "%";
+    document.getElementById("dpCount").textContent = d.data_points;
+
+    // Stats
+    document.getElementById("sPrice").textContent = "₹" + d.current_price.toLocaleString("en-IN");
+    const ch = document.getElementById("sChange");
+    const chg = d.price_change_pct;
+    ch.textContent = (chg >= 0 ? "+" : "") + chg.toFixed(2) + "%";
+    ch.className = "stat-val " + (chg >= 0 ? "positive" : "negative");
+
+    const rsi = d.rsi;
+    const rsiEl = document.getElementById("sRsi");
+    rsiEl.textContent = rsi.toFixed(1);
+    rsiEl.className = "stat-val " + (rsi > 70 ? "negative" : rsi < 30 ? "positive" : "neutral");
+
+    const macdEl = document.getElementById("sMacd");
+    macdEl.textContent = d.macd > 0 ? "+" + d.macd.toFixed(3) : d.macd.toFixed(3);
+    macdEl.className = "stat-val " + (d.macd >= 0 ? "positive" : "negative");
+
+    document.getElementById("sBb").textContent = d.bb_position.toFixed(1) + "%";
+    document.getElementById("sAtr").textContent = d.atr_pct.toFixed(2) + "%";
+
+    // Probability bars
+    document.getElementById("probUpBar").style.width = d.prob_up + "%";
+    document.getElementById("probDownBar").style.width = d.prob_down + "%";
+    document.getElementById("probUpNum").textContent = d.prob_up + "%";
+    document.getElementById("probDownNum").textContent = d.prob_down + "%";
+
+    // Feature importances
+    const featList = document.getElementById("featList");
+    featList.innerHTML = d.top_features.map(f => `
+      <div class="feat-row">
+        <span class="feat-name">${f.name.replace(/_/g, " ")}</span>
+        <div class="feat-bar-bg"><div class="feat-bar-fill" style="width:${Math.min(f.importance * 3, 100)}%"></div></div>
+        <span class="feat-pct">${f.importance.toFixed(1)}%</span>
+      </div>
+    `).join("");
+
+    document.getElementById("results").classList.add("visible");
+  }
+</script>
+</body>
+</html>
